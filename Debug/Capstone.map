@@ -1,7 +1,7 @@
 ******************************************************************************
                   MSP430 Linker PC v18.1.4                     
 ******************************************************************************
->> Linked Fri Dec 28 02:11:57 2018
+>> Linked Fri Dec 28 02:14:26 2018
 
 OUTPUT FILE NAME:   <Capstone.out>
 ENTRY POINT SYMBOL: "_c_int00_noinit_noargs_mpu"  address: 00004400
