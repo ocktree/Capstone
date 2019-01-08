@@ -4,7 +4,6 @@
 // Ockert Strydom
 // Austin Tyson
 // Kendal Zimmer
-
 #include "driverlib.h"
 #include "main.h"
 
@@ -110,6 +109,7 @@ void main(void) {
 
 #pragma vector = ADC12_VECTOR
 __interrupt
+
 /*
  * Interrupt Handler for the ADC Module
  */
@@ -167,6 +167,7 @@ void ADC12_ISR(void) {
 
 #pragma vector = PORT1_VECTOR
 __interrupt
+
 /*
  * The Interrupt Handler for Port 1
  */
