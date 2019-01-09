@@ -6,6 +6,7 @@
 // Kendal Zimmer
 #include "driverlib.h"
 #include "main.h"
+// ========================= HELPER BLOCK =========================
 
 // ========================= GPIO BLOCK =========================
 /*
@@ -58,7 +59,9 @@ void ADC_MOISTURE_CTRL(void) {
  */
 void ADC_TEMP_CTRL(void) {
     ADC12_B_setupSamplingTimer(ADC12_B_BASE,
-                               ADC12_B_CYCLEHOLD_16_CYCLES,ADC12_B_CYCLEHOLD_16_CYCLES,ADC12_B_MULTIPLESAMPLESENABLE);
+                               ADC12_B_CYCLEHOLD_16_CYCLES,
+                               ADC12_B_CYCLEHOLD_16_CYCLES,
+                               ADC12_B_MULTIPLESAMPLESENABLE);
     ADC12_B_configureMemoryParam memParam = {0};
     memParam.memoryBufferControlIndex = ADC12_B_MEMORY_0;
     memParam.inputSourceSelect = ADC12_B_INPUT_A2; //Whatever the temperature sensor's analog wiring is.
@@ -67,6 +70,8 @@ void ADC_TEMP_CTRL(void) {
     memParam.windowComparatorSelect = ADC12_B_WINDOW_COMPARATOR_DISABLE;
     memParam.differentialModeSelect = ADC12_B_DIFFERENTIAL_MODE_DISABLE;
     ADC12_B_configureMemory(ADC12_B_BASE, &memParam);
+    ADC12_B_clearInterrupt(ADC12_B_BASE, 0, ADC12_B_IFG0);
+    ADC12_B_enableInterrupt(ADC12_B_BASE, ADC12_B_IE0, 0, 0);
 }
 
 /*
@@ -84,26 +89,25 @@ void STATE_CHECK(void) {
         ADC_TEMP_CTRL();
     } else if (STATE == INIT) {
         //INIT();
+        STATE = POLLM;
     } else if (STATE == RUNNING) {
 
     }
 }
 
 void main(void) {
+    // Sets Frequency to 1MHz low, 1MHz high
+    CS_setDCOFreq(CS_DCORSEL_0, CS_DCOFSEL_0);
+    // Sets Master Clock (System and CPU clock to 1 MHz)
+    CS_initClockSignal(CS_MCLK,
+                       CS_DCOCLK_SELECT,
+                       CS_CLOCK_DIVIDER_1);
+    // Disable Watchdog Timer while Initializing.
+    WDT_A_hold(WDT_A_BASE);
+    // Call GPIO_INIT before ADC Because GPIO formats for ADC use
+    GPIO_INIT();
+    ADC_INIT();
     while(1) {
-        if (STATE == INIT) {
-            // Sets Frequency to 1MHz low, 1MHz high
-            CS_setDCOFreq(CS_DCORSEL_0, CS_DCOFSEL_0);
-            // Sets Master Clock (System and CPU clock to 1 MHz)
-            CS_initClockSignal(CS_MCLK,
-                               CS_DCOCLK_SELECT,
-                               CS_CLOCK_DIVIDER_1);
-            // Disable Watchdog Timer while Initializing.
-            WDT_A_hold(WDT_A_BASE);
-            // Call GPIO_INIT before ADC Because GPIO formats for ADC use
-            GPIO_INIT();
-            ADC_INIT();
-        }
         // State Check Call/Switch
         STATE_CHECK();
     }
@@ -118,6 +122,7 @@ __interrupt
  */
 void ADC12_ISR(void) {
     int res;
+    int ii;
     switch(__even_in_range(ADC12IV,12)) {
     case  0: break;                         // Vector  0:  No interrupt
     case  2: break;                         // Vector  2:  ADC12BMEMx Overflow
@@ -128,7 +133,12 @@ void ADC12_ISR(void) {
     case 12:                                // Vector 12:  ADC12BMEM0
         res = ADC12_B_getResults(ADC12_B_BASE, ADC12_B_MEMORY_0);
         if (STATE == POLLM) {
-
+            if (currM == 50) {
+                for (ii = 0; ii < 50; ii++) {
+                    res += MOISTURE[ii];
+                }
+                CURR_TEMP_MOIST.moisture = res/50;
+            }
         } else if (STATE == POLLT) {
 
         }
