@@ -57,7 +57,8 @@ void ADC_MOISTURE_CTRL(void) {
  * This Function Configures the ADC for use with the Temperature Sensor and also will begin the conversion for the ADC
  */
 void ADC_TEMP_CTRL(void) {
-    ADC12_B_setupSamplingTimer(ADC12_B_BASE,ADC12_B_CYCLEHOLD_16_CYCLES,ADC12_B_CYCLEHOLD_16_CYCLES,ADC12_B_MULTIPLESAMPLESENABLE);
+    ADC12_B_setupSamplingTimer(ADC12_B_BASE,
+                               ADC12_B_CYCLEHOLD_16_CYCLES,ADC12_B_CYCLEHOLD_16_CYCLES,ADC12_B_MULTIPLESAMPLESENABLE);
     ADC12_B_configureMemoryParam memParam = {0};
     memParam.memoryBufferControlIndex = ADC12_B_MEMORY_0;
     memParam.inputSourceSelect = ADC12_B_INPUT_A2; //Whatever the temperature sensor's analog wiring is.
@@ -73,40 +74,42 @@ void ADC_TEMP_CTRL(void) {
  * functions occur when.
  */
 void STATE_CHECK(void) {
-    if (CURR == SLEEP) {
+    if (STATE == SLEEP) {
         // Puts the Device to sleep waiting on Interrupts.
         __bis_SR_register(LPM3_bits + GIE);
         __no_operation();
-    } else if (CURR == POLLM) {
+    } else if (STATE == POLLM) {
         ADC_MOISTURE_CTRL();
-    } else if (CURR == POLLT) {
+    } else if (STATE == POLLT) {
         ADC_TEMP_CTRL();
-    } else if (CURR == INIT) {
-        INIT();
-    } else if (CURR == RUNNING) {
+    } else if (STATE == INIT) {
+        //INIT();
+    } else if (STATE == RUNNING) {
 
     }
 }
 
 void main(void) {
     while(1) {
-        // Sets Frequency to 1MHz low, 1MHz high
-        CS_setDCOFreq(CS_DCORSEL_0, CS_DCOFSEL_0);
-        // Sets Master Clock (System and CPU clock to 1 MHz)
-        CS_initClockSignal(CS_MCLK,
-                           CS_DCOCLK_SELECT,
-                           CS_CLOCK_DIVIDER_1);
-        // Disable Watchdog Timer while Initializing.
-        WDT_A_hold(WDT_A_BASE);
-        // Call GPIO_INIT before ADC Because GPIO formats for ADC use
-        GPIO_INIT();
-        ADC_INIT();
+        if (STATE == INIT) {
+            // Sets Frequency to 1MHz low, 1MHz high
+            CS_setDCOFreq(CS_DCORSEL_0, CS_DCOFSEL_0);
+            // Sets Master Clock (System and CPU clock to 1 MHz)
+            CS_initClockSignal(CS_MCLK,
+                               CS_DCOCLK_SELECT,
+                               CS_CLOCK_DIVIDER_1);
+            // Disable Watchdog Timer while Initializing.
+            WDT_A_hold(WDT_A_BASE);
+            // Call GPIO_INIT before ADC Because GPIO formats for ADC use
+            GPIO_INIT();
+            ADC_INIT();
+        }
         // State Check Call/Switch
-        ERR = STATE_CHECK();
-        if (ERR==0) CURR = SLEEP;
+        STATE_CHECK();
     }
 }
 
+// ==================== INTERRUPTS ===================
 #pragma vector = ADC12_VECTOR
 __interrupt
 
@@ -114,6 +117,7 @@ __interrupt
  * Interrupt Handler for the ADC Module
  */
 void ADC12_ISR(void) {
+    int res;
     switch(__even_in_range(ADC12IV,12)) {
     case  0: break;                         // Vector  0:  No interrupt
     case  2: break;                         // Vector  2:  ADC12BMEMx Overflow
@@ -123,9 +127,9 @@ void ADC12_ISR(void) {
     case 10: break;                         // Vector 10:  ADC12BIN
     case 12:                                // Vector 12:  ADC12BMEM0
         res = ADC12_B_getResults(ADC12_B_BASE, ADC12_B_MEMORY_0);
-        if (CURR == POLLM) {
+        if (STATE == POLLM) {
 
-        } else if (CURR == POLLT) {
+        } else if (STATE == POLLT) {
 
         }
         __bic_SR_register_on_exit(LPM3_bits);
